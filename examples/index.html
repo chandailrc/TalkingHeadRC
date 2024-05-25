@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importing Module Example with Import Map</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "hello-module": "./hello.js"
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Importing Module Example with Import Map</h1>
+
+    <!-- Import the module using the import map -->
+    <script type="module">
+        import { sayHello } from 'hello-module';
+
+        // Call the function from the imported module
+        sayHello('John');
+    </script>
+</body>
+</html>

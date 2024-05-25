@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure TTS Example</title>
+</head>
+
+<body>
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/microsoft-cognitiveservices-speech-sdk@latest/distrib/browser/microsoft.cognitiveservices.speech.sdk.bundle-min.js">
+        </script>
+    <!-- <input type="text" id="textInput" value="Hi there. How are you? I'm fine."> -->
+    <input type="text" id="textInput" value="नमस्ते, आप कैसे हैं?">
+    <button onclick="speakText()">Speak</button>
+
+    <script>
+        function speakText() {
+            var textInput = document.getElementById('textInput').value;
+
+            if (textInput.trim() !== "") {
+                var ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='en-US-AriaNeural'>" + textInput + "</voice></speak>";
+                // var ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='hi-IN'><voice name='hi-IN-SwaraNeural'>" + textInput + "</voice></speak>";
+                var speechConfig = SpeechSDK.SpeechConfig.fromSubscription("3200ee2caeb64ac083e381f393330cfa", "eastus");
+                var audioConfig = SpeechSDK.AudioConfig.fromDefaultSpeakerOutput();
+                var synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, audioConfig);
+
+                // Subscribing to viseme received event
+                synthesizer.visemeReceived = function (s, e) {
+                    console.log("(Viseme), Audio offset: " + e.audioOffset / 10000 + "ms. Viseme ID: " + e.visemeId);
+                    console.log("test")
+                    // `Animation` is an xml string for SVG or a json string for blend shapes
+                    var animation = e.animation;
+                };
+
+                synthesizer.speakSsmlAsync(ssml)
+
+            } else {
+                console.log("Text input is empty.");
+            }
+        }
+    </script>
+
+</body>
+
+</html>

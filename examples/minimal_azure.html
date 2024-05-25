@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Talking Head - minimal example</title>
+
+  <style>
+    body,
+    html {
+      width: 100%;
+      height: 100%;
+      max-width: 800px;
+      margin: auto;
+      position: relative;
+      background-color: dimgray;
+      color: white;
+    }
+
+    #avatar {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #controls {
+      display: block;
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      height: 100px;
+    }
+
+    #textFieldContainer,
+    #dropdownContainer {
+      margin-bottom: 10px;
+    }
+
+    #textFieldContainer,
+    #dropdownContainer,
+    input,
+    select,
+    button {
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    #textFieldContainer {
+      width: calc(100% - 120px);
+    }
+
+    #dropdownContainer {
+      width: calc(100% - 120px);
+    }
+
+    input[type="text"],
+    select {
+      width: calc(100% - 70px);
+      height: 40px;
+      font-size: 16px;
+      padding: 5px;
+    }
+
+    button {
+      height: 40px;
+      font-size: 16px;
+      padding: 0 15px;
+      cursor: pointer;
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+  </style>
+
+  <script type="importmap">
+  { "imports":
+    {
+      "hello-module": "./hello.js",
+      "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js/+esm",
+      "three/examples/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/",
+      "dompurify": "https://cdn.jsdelivr.net/npm/dompurify@3.0.6/+esm",
+      "marked": "https://cdn.jsdelivr.net/npm/marked@11.2.0/+esm",
+      "talkinghead": "./modules/talkinghead_azure.mjs"
+    }
+  }
+  </script>
+
+  <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1595.0.min.js"></script>
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/microsoft-cognitiveservices-speech-sdk@latest/distrib/browser/microsoft.cognitiveservices.speech.sdk.bundle-min.js">
+    </script>
+
+  <script type="text/JavaScript">
+
+    AWS.config.region = 'ap-south-1';
+    AWS.config.credentials = new AWS.CognitoIdentityCredentials({IdentityPoolId: 'ap-south-1:74ed94b5-853c-49f2-b061-e8cb37003667'});
+
+    const polly = new AWS.Polly();
+   
+    const visemeDurations = {
+      'aa': 0.95, 'E': 0.90, 'I': 0.92, 'O': 0.96, 'U': 0.95, 'PP': 1.08,
+      'SS': 1.23, 'TH': 1, 'DD': 1.05, 'FF': 1.00, 'kk': 1.21, 'nn': 0.88,
+      'RR': 0.88, 'DD': 1.05, 'sil': 1
+    };
+
+    const visemeIDtoViseme = {
+      '0': 'sil', '1': 'I', '2': 'aa', '3': 'O', '4': 'O', '5': 'RR', '6': 'I', '7': 'U',
+      '8': 'O', '9': 'U', '10': 'U', '11': 'aa', '12': 'kk', '13': 'RR', '14': 'nn', '15': 'SS',
+      '16': 'CH', '17': 'TH', '18': 'FF', '19': 'DD', '20': 'kk', '21': 'PP'
+    };
+    
+
+    async function generateSpeechMarks(wordsArrayBySentence) {
+
+      var speechConfig = SpeechSDK.SpeechConfig.fromSubscription("3200ee2caeb64ac083e381f393330cfa", "eastus");
+      var audioConfig = SpeechSDK.AudioConfig.fromDefaultSpeakerOutput();
+      var synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, audioConfig);
+
+      var wordVisemeArray = []; // Declare wordVisemeArray here
+
+      synthesizer.visemeReceived = function(s, e) {
+        console.log("(Viseme), Audio offset: " + e.audioOffset / 10000 + "ms. Viseme ID: " + e.visemeId);
+        // console.log("test");
+        
+        // const duration = visemeDurations[visemeValue] || 1;
+        // obj.duration = duration;
+
+        const visemeOculus = visemeIDtoViseme[e.visemeId];
+        // console.log(`visemeOculus: ${visemeOculus}`);
+
+        const durationOculus = visemeDurations[visemeOculus] || 1;
+        // console.log(`durationOculus: ${durationOculus}`);
+
+        var visemeInfo = {
+          time: e.audioOffset/10000,
+          type: "viseme",
+          value: visemeOculus,
+          duration: durationOculus
+        };
+
+        wordVisemeArray.push(visemeInfo);
+
+      };
+
+      const sentenceBasedSpeechMarks = [];
+      const onlyWordVisemeArray = [];
+
+      for (const wordSentence of wordsArrayBySentence) {
+        var sentenceVisemeArray = [];
+        for (const word of wordSentence){
+          // var ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='gu-IN'><voice name='gu-IN-DhwaniNeural'>" + word + "</voice></speak>";
+          var ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='en-US-AvaMultilingualNeural'>" + word + "</voice></speak>";
+
+          var wordVisemeArray = [];
+
+          if (word.trim() !== "") {
+            // Promisify speakSsmlAsync
+            const speakPromise = new Promise((resolve) => {
+              console.log(word)
+              synthesizer.speakSsmlAsync(ssml, () => {
+                resolve();
+              });
+            });
+
+            // Wait for speakSsmlAsync to finish before pushing the viseme array
+            await speakPromise;
+
+            sentenceVisemeArray.push(wordVisemeArray)
+            wordVisemeArray.shift()
+            wordVisemeArray.pop()
+            onlyWordVisemeArray.push(wordVisemeArray)
+          }
+
+        }
+        sentenceBasedSpeechMarks.push(sentenceVisemeArray);
+
+      }
+
+      // return sentenceBasedSpeechMarks;
+
+      // for whatever reason, every generation is accompanied with a sil viseme as the first and last entry.
+      // removing the first and last entries
+      return onlyWordVisemeArray;
+    }
+
+    async function generateAudioStream(textArray) {
+      const subscriptionKey = '3200ee2caeb64ac083e381f393330cfa';
+      const serviceRegion = 'eastus';
+      // const voiceId = 'en-US-AvaMultilingualNeural';
+      const voiceId = 'gu-IN-DhwaniNeural';
+      const storedDecodedDataArray = [];
+
+      const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(subscriptionKey, serviceRegion);
+      speechConfig.speechSynthesisVoiceName = voiceId;
+      
+      // Create an AudioContext instance
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      for (const text of textArray) {
+          console.log(`text is : ${text}`);
+
+          const speechSynthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, null);
+          
+          // Wrap the loop body in an async function
+          async function processText() {
+              return new Promise((resolve, reject) => {
+                  speechSynthesizer.speakTextAsync(
+                      text,
+                      async result => {
+                          const audioData = result.audioData;
+                          const audioBuffer = await audioContext.decodeAudioData(audioData);
+                          storedDecodedDataArray.push(audioBuffer);
+                          console.log(`Audio data byte size: ${audioData.byteLength}.`)
+                          resolve();
+                      },
+                      error => {
+                          console.log(error);
+                          reject(error);
+                      });
+              });
+          }
+
+          // Await the async function
+          await processText();
+
+          speechSynthesizer.close();
+      }
+
+      return storedDecodedDataArray;
+    }
+
+
+    // async function generateAudioStream(textArray) {
+    //   const subscriptionKey = '3200ee2caeb64ac083e381f393330cfa';
+    //   const serviceRegion = 'eastus';
+    //   const voiceId = 'en-US-JennyNeural';
+    //   const storedDecodedDataArray = [];
+
+    //   const speechConfig = SpeechSDK.SpeechConfig.fromSubscription(subscriptionKey, serviceRegion);
+
+    //   for (const text of textArray) {
+    //     console.log(`text is : ${text}`);
+
+    //     const speechSynthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, null);
+        
+    //     // Wrap the loop body in an async function
+    //     async function processText() {
+    //         return new Promise((resolve, reject) => {
+    //             speechSynthesizer.speakTextAsync(
+    //                 text,
+    //                 async result => {
+    //                     const audioData = result.audioData;
+    //                     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    //                     const audioBuffer = await audioContext.decodeAudioData(audioData);
+    //                     storedDecodedDataArray.push(audioBuffer);
+    //                     console.log(`Audio data byte size: ${audioData.byteLength}.`)
+    //                     resolve();
+    //                 },
+    //                 error => {
+    //                     console.log(error);
+    //                     reject(error);
+    //                 });
+    //         });
+    //     }
+
+    //     // Await the async function
+    //     await processText();
+
+    //     speechSynthesizer.close();
+    //   }
+
+    //   return storedDecodedDataArray;
+    // }
+
+  </script>
+
+  <script type="module">
+
+    import { sayHello } from 'hello-module';
+    import { TalkingHead } from "talkinghead";
+
+    // Call the function from the imported module
+    sayHello('John');
+
+
+    function splitInputTextToSentencesToWords(text, language) {
+      let dividersSentence;
+
+      // Define regex patterns for sentence dividers based on language
+      switch (language) {
+        case 'English':
+          dividersSentence = /[.!?]/;
+          break;
+        case 'Hindi':
+        case 'Marathi':
+        case 'Gujarati':
+        case 'Bengali':
+          dividersSentence = /[।?!]/; // Adjusted to include "।" and "?"
+          break;
+        case 'Tamil':
+          dividersSentence = /[.?!।]/;
+          break;
+        case 'Telugu':
+          dividersSentence = /[.?!]/;
+          break;
+        default:
+          console.error('Unsupported language');
+          return;
+      }
+
+      // Split text into sentences using regex pattern for sentence dividers
+      const sentences = text.split(dividersSentence);
+
+      // Filter out any empty strings
+      const sentencesArray = sentences.filter(sentence => sentence.trim() !== '');
+
+      // Split each sentence into words
+      const wordsArray = sentencesArray.map(sentence => sentence.trim().split(/\s+/));
+
+      return wordsArray;
+    }
+
+    function extractWordTimings(visemes, sentence_word_array) {
+      var timePointArray = [];
+      // console.log("in")
+
+      var vismCounter = 0;
+      for (const sentence_word of sentence_word_array) {
+        var sentenceTimePoints = [];
+        var markIdx = 0;
+        var lastTime = 0;
+        // console.log(sentence_word)
+        for (const word of sentence_word) {
+          // console.log(visemes[vismCounter]);
+          // console.log(`vismCounter: ${vismCounter}`);
+
+          var timeP = visemes[vismCounter][0].time + lastTime;
+          var lastElementIndex = visemes[vismCounter].length - 1
+          lastTime = lastTime + visemes[vismCounter][lastElementIndex].time;
+
+          // console.log(`timeP: ${timeP}`)
+
+          const timePoint = { markName: markIdx, timeSeconds: timeP / 1000 };
+          sentenceTimePoints.push(timePoint)
+          markIdx++;
+          vismCounter++;
+        }
+        // sentenceTimePoints.shift()
+        timePointArray.push(sentenceTimePoints);
+      }
+      return timePointArray;
+    }
+
+
+    //import { TalkingHead } from "talkinghead";
+
+    let head;
+
+    document.addEventListener('DOMContentLoaded', async function (e) {
+
+      // Instantiate the class
+      // NOTE: Never put your API key in a client-side code unless you know
+      //       that you are the only one to have access to that code!
+      const nodeAvatar = document.getElementById('avatar');
+      head = new TalkingHead(nodeAvatar, {
+        ttsEndpoint: "https://texttospeech.googleapis.com/v1beta1/text:synthesize",
+        ttsApikey: "", // <- Change this
+        cameraView: "upper"
+      });
+
+      // Load and show the avatar
+      const nodeLoading = document.getElementById('loading');
+      try {
+        nodeLoading.textContent = "Loading...";
+        await head.showAvatar({
+          url: 'https://models.readyplayer.me/64bfa15f0e72c63d7c3934a6.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png',
+          body: 'F',
+          avatarMood: 'neutral',
+          ttsLang: "en-GB",
+          ttsVoice: "en-GB-Standard-A",
+          lipsyncLang: 'en'
+        }, (ev) => {
+          if (ev.lengthComputable) {
+            let val = Math.min(100, Math.round(ev.loaded / ev.total * 100));
+            nodeLoading.textContent = "Loading " + val + "%";
+          }
+        });
+        nodeLoading.style.display = 'none';
+      } catch (error) {
+        console.log(error);
+        nodeLoading.textContent = error.toString();
+      }
+
+      const nodeChangeButton = document.getElementById('changeButton');
+      const nodeDropdown = document.getElementById('dropdown');
+
+      nodeChangeButton.addEventListener('click', function () {
+        try {
+          const selectedOption = nodeDropdown.value;
+          console.log("Selected option:", selectedOption);
+          // Add your logic here to handle the selected option
+          nodeLoading.textContent = "Loading...";
+          head.showAvatar({
+            url: selectedOption,
+            body: 'F',
+            avatarMood: 'neutral',
+            ttsLang: "en-GB",
+            ttsVoice: "en-GB-Standard-A",
+            lipsyncLang: 'en'
+          }, (ev) => {
+            if (ev.lengthComputable) {
+              let val = Math.min(100, Math.round(ev.loaded / ev.total * 100));
+              nodeLoading.textContent = "Loading " + val + "%";
+            }
+          });
+          nodeLoading.style.display = 'none';
+        } catch (error) {
+          console.log(error);
+          nodeLoading.textContent = error.toString();
+        }
+      });
+
+      // Speak when clicked
+      const nodeSpeak = document.getElementById('speak');
+      nodeSpeak.addEventListener('click', async function () {
+        try {
+          const text = document.getElementById('text').value;
+          if (text) {
+            console.log("text")
+            console.log(text)
+            head.setCountersToZero()
+
+            const azure_sentences_words = splitInputTextToSentencesToWords(text, "English")
+
+            console.log("azure_sentences")
+            console.log(azure_sentences_words)
+
+
+            const vismArray = await generateSpeechMarks(azure_sentences_words)
+
+            console.log("vismArray")
+            console.log(vismArray)
+
+            const vismTimePoints = extractWordTimings(vismArray, azure_sentences_words)
+
+            console.log("visemeTimePoints")
+            console.log(vismTimePoints)
+
+            var aws_audio_text_array = []
+
+            for (const st of azure_sentences_words) {
+              aws_audio_text_array.push(st.join(" "))
+            }
+
+            console.log("aws_audio_text_array")
+            console.log(aws_audio_text_array)
+
+            const aws_audio_data_array = await generateAudioStream(aws_audio_text_array)
+
+            console.log("aws_audio_data_array")
+            console.log(aws_audio_data_array)
+
+            const aws_audio_data = { "audio": aws_audio_data_array, "timepoints": vismTimePoints }
+
+            head.setAudioStream(aws_audio_data)
+
+            head.speakText(text, vismArray);
+          }
+        } catch (error) {
+          console.log(error);
+        }
+      });
+
+
+
+    });
+    /**/
+  </script>
+</head>
+<!-- FIX "I'm fine." ERROR LATER-->
+
+<body>
+  <div id="avatar"></div>
+  <div id="controls">
+    <!-- Text Field -->
+    <div id="textFieldContainer">
+      <input id="text" type="text" value="Hi there. How are you? I'm fine.">
+      <button id="speak" type="button">Speak</button>
+    </div>
+    <!-- Dropdown List -->
+    <div id="dropdownContainer">
+      <select id="dropdown">
+        <option
+          value='https://models.readyplayer.me/64bfa15f0e72c63d7c3934a6.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png'>
+          Option 1</option>
+        <option
+          value='https://models.readyplayer.me/662500cb36fc699c3e7a30ce.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png'>
+          Option 2</option>
+        <option
+          value='https://models.readyplayer.me/6625059471c592bae0a45fdc.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png'>
+          Option 3</option>
+      </select>
+      <button id="changeButton" type="button">Change</button>
+    </div>
+  </div>
+  <div id="loading"></div>
+</body>
+
+</html>

@@ -195,29 +195,29 @@ class LipsyncEn {
     };
 
     // Convert rules to regex
-    Object.keys(this.rules).forEach( key => {
-      this.rules[key] = this.rules[key].map( rule => {
+    Object.keys(this.rules).forEach(key => {
+      this.rules[key] = this.rules[key].map(rule => {
         const posL = rule.indexOf('[');
         const posR = rule.indexOf(']');
         const posE = rule.indexOf('=');
-        const strLeft = rule.substring(0,posL);
-        const strLetters = rule.substring(posL+1,posR);
-        const strRight = rule.substring(posR+1,posE);
-        const strVisemes = rule.substring(posE+1);
+        const strLeft = rule.substring(0, posL);
+        const strLetters = rule.substring(posL + 1, posR);
+        const strRight = rule.substring(posR + 1, posE);
+        const strVisemes = rule.substring(posE + 1);
 
         const o = { regex: '', move: 0, visemes: [] };
 
         let exp = '';
-        exp += [...strLeft].map( x => ops[x] || x ).join('');
+        exp += [...strLeft].map(x => ops[x] || x).join('');
         const ctxLetters = [...strLetters];
         ctxLetters[0] = ctxLetters[0].toLowerCase();
         exp += ctxLetters.join('');
         o.move = ctxLetters.length;
-        exp += [...strRight].map( x => ops[x] || x ).join('');
+        exp += [...strRight].map(x => ops[x] || x).join('');
         o.regex = new RegExp(exp);
 
-        if ( strVisemes.length ) {
-          strVisemes.split(' ').forEach( viseme => {
+        if (strVisemes.length) {
+          strVisemes.split(' ').forEach(viseme => {
             o.visemes.push(viseme);
           });
         }
@@ -235,17 +235,17 @@ class LipsyncEn {
     };
 
     // Pauses in relative units (1=average)
-    this.specialDurations = { ' ': 1, ',': 3, '-':0.5 };
+    this.specialDurations = { ' ': 1, ',': 3, '-': 0.5 };
 
     // English number words
     this.digits = ['oh', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
-    this.ones = ['','one','two','three','four','five','six','seven','eight','nine'];
-    this.tens = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
-    this.teens = ['ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+    this.ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+    this.tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+    this.teens = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
 
     // Symbols to English
     this.symbols = {
-      '%': 'percentage', '€': 'euros', '&': 'and', '+': 'plus',
+      '%': 'percent', '€': 'euros', '&': 'and', '+': 'plus',
       '$': 'dollars'
     };
     this.symbolsReg = /[%€&\+\$]/g;
@@ -254,7 +254,7 @@ class LipsyncEn {
   convert_digit_by_digit(num) {
     num = String(num).split("");
     let numWords = "";
-    for(let m=0; m<num.length; m++) {
+    for (let m = 0; m < num.length; m++) {
       numWords += this.digits[num[m]] + " ";
     }
     numWords = numWords.substring(0, numWords.length - 1); //kill final space
@@ -269,45 +269,45 @@ class LipsyncEn {
     return numWords;
   }
 
-  convert_millions(num){
-    if (num>=1000000){
-      return this.convert_millions(Math.floor(num/1000000))+" million "+this.convert_thousands(num%1000000);
+  convert_millions(num) {
+    if (num >= 1000000) {
+      return this.convert_millions(Math.floor(num / 1000000)) + " million " + this.convert_thousands(num % 1000000);
     } else {
       return this.convert_thousands(num);
     }
   }
 
-  convert_thousands(num){
-    if (num>=1000){
-      return this.convert_hundreds(Math.floor(num/1000))+" thousand "+this.convert_hundreds(num%1000);
+  convert_thousands(num) {
+    if (num >= 1000) {
+      return this.convert_hundreds(Math.floor(num / 1000)) + " thousand " + this.convert_hundreds(num % 1000);
     } else {
       return this.convert_hundreds(num);
     }
   }
 
-  convert_hundreds(num){
-    if (num>99){
-      return this.ones[Math.floor(num/100)]+" hundred "+this.convert_tens(num%100);
+  convert_hundreds(num) {
+    if (num > 99) {
+      return this.ones[Math.floor(num / 100)] + " hundred " + this.convert_tens(num % 100);
     } else {
       return this.convert_tens(num);
     }
   }
 
-  convert_tens(num){
-    if (num<10) return this.ones[num];
-    else if (num>=10 && num<20) {
-      return this.teens[num-10];
+  convert_tens(num) {
+    if (num < 10) return this.ones[num];
+    else if (num >= 10 && num < 20) {
+      return this.teens[num - 10];
     } else {
-      return this.tens[Math.floor(num/10)]+" "+this.ones[num%10];
+      return this.tens[Math.floor(num / 10)] + " " + this.ones[num % 10];
     }
   }
 
-  convertNumberToWords(num){
-    if (num==0) {
+  convertNumberToWords(num) {
+    if (num == 0) {
       return "zero";
-    } else if ((num<1000&&num>99)||(num>10000&&num<1000000)) { //read area and zip codes digit by digit
+    } else if ((num < 1000 && num > 99) || (num > 10000 && num < 1000000)) { //read area and zip codes digit by digit
       return this.convert_digit_by_digit(num);
-    } else if ((num > 1000 && num < 2000)||(num>2009&&num<3000)) { //read years as two sets of two digits
+    } else if ((num > 1000 && num < 2000) || (num > 2009 && num < 3000)) { //read years as two sets of two digits
       return this.convert_sets_of_two(num);
     } else {
       return this.convert_millions(num);
@@ -324,14 +324,14 @@ class LipsyncEn {
   * @return {string} Pre-processsed text.
   */
   preProcessText(s) {
-    return s.replace('/[#_*\'\":;]/g','')
-      .replace( this.symbolsReg, (symbol) => {
+    return s.replace('/[#_*\'\":;]/g', '')
+      .replace(this.symbolsReg, (symbol) => {
         return ' ' + this.symbols[symbol] + ' ';
       })
       .replace(/(\d)\,(\d)/g, '$1 point $2') // Number separator
       .replace(/\d+/g, this.convertNumberToWords.bind(this)) // Numbers to words
       .replace(/(\D)\1\1+/g, "$1$1") // max 2 repeating chars
-      .replaceAll('  ',' ') // Only one repeating space
+      .replaceAll('  ', ' ') // Only one repeating space
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC') // Remove non-English diacritics
       .trim();
   }
@@ -343,29 +343,30 @@ class LipsyncEn {
   * @return {Object} Oculus LipSync Visemes and durations.
   */
   wordsToVisemes(w) {
-    let o = { words: w.toUpperCase(), visemes: [], times: [], durations: [], i:0 };
+    let o = { words: w.toUpperCase(), visemes: [], times: [], durations: [], i: 0 };
     let t = 0;
 
     const chars = [...o.words];
-    while( o.i < chars.length ) {
+    while (o.i < chars.length) {
       const c = chars[o.i];
       const ruleset = this.rules[c];
-      if ( ruleset ) {
-        for(let i=0; i<ruleset.length; i++) {
+
+      if (ruleset) {
+        for (let i = 0; i < ruleset.length; i++) {
           const rule = ruleset[i];
-          const test = o.words.substring(0, o.i) + c.toLowerCase() + o.words.substring(o.i+1);
+          const test = o.words.substring(0, o.i) + c.toLowerCase() + o.words.substring(o.i + 1);
           let matches = test.match(rule.regex);
-          if ( matches ) {
-            rule.visemes.forEach( viseme => {
-              if ( o.visemes.length && o.visemes[ o.visemes.length - 1 ] === viseme ) {
+          if (matches) {
+            rule.visemes.forEach(viseme => {
+              if (o.visemes.length && o.visemes[o.visemes.length - 1] === viseme) {
                 const d = 0.7 * (this.visemeDurations[viseme] || 1);
-                o.durations[ o.durations.length - 1 ] += d;
+                o.durations[o.durations.length - 1] += d;
                 t += d;
               } else {
                 const d = this.visemeDurations[viseme] || 1;
-                o.visemes.push( viseme );
+                o.visemes.push(viseme);
                 o.times.push(t);
-                o.durations.push( d );
+                o.durations.push(d);
                 t += d;
               }
             })

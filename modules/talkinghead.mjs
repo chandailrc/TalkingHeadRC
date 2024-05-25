@@ -1889,6 +1889,17 @@ class TalkingHead {
     return o.wordsToVisemes(w);
   }
 
+  convertto_lipsyncWordsToVisemes(word,visArr) {
+    const o = { words: word.toUpperCase(), visemes: [], times: [], durations: [], i: word.length };
+
+    visArr.forEach(item => {
+      o.visemes.push(item.value);
+      o.times.push(item.time);
+      o.durations.push(item.duration);
+    });
+
+  return o;
+}
 
   /**
   * Add text to the speech queue.
@@ -1897,7 +1908,7 @@ class TalkingHead {
   * @param {subtitlesfn} [onsubtitles=null] Callback when a subtitle is written
   * @param {number[][]} [excludes=null] Array of [start, end] index arrays to not speak
   */
-  speakText(s, opt = null, onsubtitles = null, excludes = null ) {
+  speakText(s, vismArray, opt = null, onsubtitles = null, excludes = null ) {
     opt = opt || {};
 
     // Classifiers
@@ -1913,6 +1924,7 @@ class TalkingHead {
     let ttsSentence = []; // Text-to-speech sentence
     let lipsyncAnim = []; // Lip-sync animation sequence
     const letters = [...s];
+    const vismCounter=0
     for( let i=0; i<letters.length; i++ ) {
       const isLast = i === (letters.length-1);
       const isSpeakable = letters[i].match(speakables);
@@ -1933,6 +1945,10 @@ class TalkingHead {
 
       // Add words to sentence and animations
       if ( isEndOfWord || isEndOfSentence || isLast ) {
+        
+        const pollyViseme = vismArray[vismCounter]
+
+        vismCounter+=1
 
         // Add to text-to-speech sentence
         if ( textWord.length ) {
@@ -1960,7 +1976,7 @@ class TalkingHead {
 
         // Push visemes to animation queue
         if ( textWord.length ) {
-          const v = this.lipsyncWordsToVisemes(textWord, lipsyncLang);
+          const v = this.convertto_lipsyncWordsToVisemes(textWord, pollyViseme);
           if ( v && v.visemes && v.visemes.length ) {
             const d = v.times[ v.visemes.length-1 ] + v.durations[ v.visemes.length-1 ];
             for( let j=0; j<v.visemes.length; j++ ) {
