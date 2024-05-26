@@ -435,7 +435,7 @@
             // aws_audio_array.push(aws_audio_data)
             head.setAudioStream(aws_audio_data)
 
-            head.speakText(text, vismArray);
+            head.speakText(aws_audio_text_array, vismArray);
           }
         } catch (error) {
           console.log(error);
@@ -463,13 +463,13 @@
       <select id="dropdown">
         <option
           value='https://models.readyplayer.me/64bfa15f0e72c63d7c3934a6.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png'>
-          Option 1</option>
+          1. English (F)</option>
         <option
           value='https://models.readyplayer.me/662500cb36fc699c3e7a30ce.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png'>
-          Option 2</option>
+          2. English (M)</option>
         <option
           value='https://models.readyplayer.me/6625059471c592bae0a45fdc.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png'>
-          Option 3</option>
+          3. Hindi (F)</option>
       </select>
       <button id="changeButton" type="button">Change</button>
     </div>

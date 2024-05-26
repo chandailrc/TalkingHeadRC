@@ -1978,12 +1978,9 @@ class TalkingHead {
   * @param {number[][]} [excludes=null] Array of [start, end] index arrays to not speak
   */
 
-  speakText(s, vismArray, opt = null, onsubtitles = null, excludes = null) {
-    opt = opt || {};
 
-    // Classifiers
-    // const dividersSentence = /[!\.\?\n\p{Extended_Pictographic}]/ug;
-    const dividersSentence = /[!\.\?\n\p{Extended_Pictographic}।]/ug;
+  speakText(sentenceArray, vismArray, opt = null, onsubtitles = null, excludes = null) {
+    opt = opt || {};
 
     const dividersWord = /[ ]/ug;
     const speakables = /[\p{L}\p{N},\.'!€\$\+\-%&\?]/ug;
@@ -1995,29 +1992,35 @@ class TalkingHead {
     let markId = 0; // SSML mark id
     let ttsSentence = []; // Text-to-speech sentence
     let lipsyncAnim = []; // Lip-sync animation sequence
-    const letters = [...s];
     let vismCounter = 0;
-    for (let i = 0; i < letters.length; i++) {
-      const isLast = i === (letters.length - 1);
-      const isSpeakable = letters[i].match(speakables);
-      const isEndOfSentence = letters[i].match(dividersSentence);
-      const isEndOfWord = letters[i].match(dividersWord);
 
-      // Add letter to subtitles
-      if (onsubtitles) {
-        markdownWord += letters[i];
-      }
+    for (let i = 0; i < sentenceArray.length; i++) {
+      let sentence = sentenceArray[i];
+      let words = sentence.split(dividersWord);
 
-      // Add letter to spoken word
-      if (isSpeakable) {
-        if (!excludes || excludes.every(x => (i < x[0]) || (i > x[1]))) {
-          textWord += letters[i];
+      console.log("sentence")
+      console.log(sentence)
+
+      for (let j = 0; j < words.length; j++) {
+        let word = words[j];
+        const isLastWord = j === (words.length - 1);
+        // const isSpeakable = word.match(speakables);
+        const isEndOfWord = word.match(dividersWord) || isLastWord;
+
+        console.log("word: ")
+        console.log(word)
+
+        // Add word to subtitles
+        if (onsubtitles) {
+          markdownWord += word + " ";
         }
-      }
 
-      // Add words to sentence and animations
-      if (isEndOfWord || isEndOfSentence || isLast) {
-
+        // Add word to spoken word
+        // if (isSpeakable) {
+        if (!excludes || excludes.every(x => (j < x[0]) || (j > x[1]))) {
+          textWord = word;
+        }
+        // }
 
         // Add to text-to-speech sentence
         if (textWord.length) {
@@ -2043,38 +2046,34 @@ class TalkingHead {
           markdownWord = '';
         }
 
+        console.log("textWord")
+        console.log(textWord)
+
         // Push visemes to animation queue
         if (textWord.length) {
-
-          // console.log(`vismCounter ${vismCounter}, textWord ${textWord}`)
-          const pollyViseme = vismArray[vismCounter]
-
-          // console.log(`textWord : ${textWord}`)
-          // console.log("pollyViseme")
-          // console.log(pollyViseme)
-
-          vismCounter = vismCounter + 1;
+          const pollyViseme = vismArray[vismCounter];
+          vismCounter++;
 
           const v = this.convertto_lipsyncWordsToVisemes(textWord, pollyViseme);
-          const veee = this.lipsyncWordsToVisemes(textWord, lipsyncLang)
-          // const v = this.lipsyncWordsToVisemes_custom(textWord,lipsyncLang,pollyViseme)
+          const veee = this.lipsyncWordsToVisemes(textWord, lipsyncLang);
+
           console.log(`v textWord : ${textWord}`)
           console.log("v>>")
           console.log(v)
           console.log("veee>>")
           console.log(veee)
+
           if (v && v.visemes && v.visemes.length) {
             const d = v.times[v.visemes.length - 1] + v.durations[v.visemes.length - 1];
-            for (let j = 0; j < v.visemes.length; j++) {
-              const o =
-                lipsyncAnim.push({
-                  mark: markId,
-                  template: { name: 'viseme' },
-                  ts: [(v.times[j] - 0.6) / d, (v.times[j] + 0.5) / d, (v.times[j] + v.durations[j] + 0.5) / d],
-                  vs: {
-                    ['viseme_' + v.visemes[j]]: [null, (v.visemes[j] === 'PP' || v.visemes[j] === 'FF') ? 0.9 : 0.6, 0]
-                  }
-                });
+            for (let k = 0; k < v.visemes.length; k++) {
+              lipsyncAnim.push({
+                mark: markId,
+                template: { name: 'viseme' },
+                ts: [(v.times[k] - 0.6) / d, (v.times[k] + 0.5) / d, (v.times[k] + v.durations[k] + 0.5) / d],
+                vs: {
+                  ['viseme_' + v.visemes[k]]: [null, (v.visemes[k] === 'PP' || v.visemes[k] === 'FF') ? 0.9 : 0.6, 0]
+                }
+              });
             }
           }
           textWord = '';
@@ -2083,13 +2082,9 @@ class TalkingHead {
       }
 
       // Process sentences
-      if (isEndOfSentence || isLast) {
-
-        // console.log("lipsyncanim")
-        // console.log(lipsyncAnim)
-
+      if (i === sentenceArray.length - 1 || sentenceArray[i].match(/[!\.\?\n\p{Extended_Pictographic}।]/ug)) {
         // Send sentence to Text-to-speech queue
-        if (ttsSentence.length || (isLast && lipsyncAnim.length)) {
+        if (ttsSentence.length || (i === sentenceArray.length - 1 && lipsyncAnim.length)) {
           const o = {
             anim: lipsyncAnim
           };
@@ -2113,8 +2108,8 @@ class TalkingHead {
         }
 
         // Send emoji, if the divider was a known emoji
-        if (letters[i].match(emojis)) {
-          let emoji = this.animEmojis[letters[i]];
+        if (sentence.match(emojis)) {
+          let emoji = this.animEmojis[sentence.match(emojis)[0]];
           if (emoji && emoji.link) emoji = this.animEmojis[emoji.link];
           if (emoji) {
             this.speechQueue.push({ emoji: emoji });
@@ -2122,9 +2117,7 @@ class TalkingHead {
         }
 
         this.speechQueue.push({ break: 100 });
-
       }
-
     }
 
     this.speechQueue.push({ break: 1000 });
@@ -2132,6 +2125,7 @@ class TalkingHead {
     // Start speaking (if not already)
     this.startSpeaking();
   }
+
 
   /**
   * Add emoji to speech queue.
