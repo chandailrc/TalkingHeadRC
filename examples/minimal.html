@@ -17,13 +17,11 @@
     }
 
     #avatar {
-      display: block;
       width: 100%;
       height: 100%;
     }
 
     #controls {
-      display: block;
       position: absolute;
       top: 10px;
       left: 10px;
@@ -34,36 +32,23 @@
     #textFieldContainer,
     #dropdownContainer {
       margin-bottom: 10px;
-    }
-
-    #textFieldContainer,
-    #dropdownContainer,
-    input,
-    select,
-    button {
-      display: inline-block;
-      vertical-align: middle;
-    }
-
-    #textFieldContainer {
-      width: calc(100% - 120px);
-    }
-
-    #dropdownContainer {
       width: calc(100% - 120px);
     }
 
     input[type="text"],
-    select {
-      width: calc(100% - 70px);
+    select,
+    button {
       height: 40px;
       font-size: 16px;
       padding: 5px;
     }
 
+    input[type="text"],
+    select {
+      width: calc(100% - 70px);
+    }
+
     button {
-      height: 40px;
-      font-size: 16px;
       padding: 0 15px;
       cursor: pointer;
       background-color: #4CAF50;
@@ -76,9 +61,10 @@
     }
   </style>
 
+  <!-- Import map for module imports -->
   <script type="importmap">
-  { "imports":
-    {
+  {
+    "imports": {
       "hello-module": "./hello.js",
       "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js/+esm",
       "three/examples/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/",
@@ -90,166 +76,116 @@
   }
   </script>
 
+  <!-- AWS SDK for JavaScript -->
   <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1595.0.min.js"></script>
 
-  <script type="text/JavaScript">
-
+  <script>
+    // Configure AWS Polly
     AWS.config.region = 'ap-south-1';
-    AWS.config.credentials = new AWS.CognitoIdentityCredentials({IdentityPoolId: 'ap-south-1:74ed94b5-853c-49f2-b061-e8cb37003667'});
+    AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+      IdentityPoolId: 'ap-south-1:74ed94b5-853c-49f2-b061-e8cb37003667'
+    });
 
     const polly = new AWS.Polly();
-    var voiceId = 'Kendra';
-    
-    async function generateSpeechMarks(text) {
-      const outputFormat = 'json';
+    let voiceId = 'Kendra';
 
+    // Function to generate speech marks
+    async function generateSpeechMarks(text) {
       const params = {
         Text: text,
-        OutputFormat: outputFormat,
+        OutputFormat: 'json',
         VoiceId: voiceId,
         SpeechMarkTypes: ['word', 'sentence', 'viseme']
       };
 
       try {
         const data = await polly.synthesizeSpeech(params).promise();
-        //const speechMarks = JSON.parse(data.AudioStream.toString('utf-8'));
-        const audioStream = data.AudioStream;
-        return audioStream
+        return data.AudioStream;
       } catch (err) {
         console.error('Error generating speech marks:', err);
       }
     }
 
+    // Function to generate audio stream from text array
     async function generateAudioStream(textArray) {
       const outputFormat = 'mp3';
       const storedDecodedDataArray = [];
 
       for (const text of textArray) {
-        console.log(`text is : ${text}`);
         const params = {
           Text: text,
           OutputFormat: outputFormat,
-          VoiceId: voiceId,
+          VoiceId: voiceId
         };
 
         try {
           const data = await polly.synthesizeSpeech(params).promise();
-          const audioStream = data.AudioStream;
-
-          // Convert the audio stream into a Blob object
-          const blob = new Blob([audioStream], { type: 'audio/mp3' });
-
-          // Create a new AudioContext
+          const blob = new Blob([data.AudioStream], { type: 'audio/mp3' });
           const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-          // Wrap the entire decoding process in a promise
-          const decodedPromise = new Promise((resolve, reject) => {
-            // Create a FileReader to read the Blob as ArrayBuffer
-            const fileReader = new FileReader();
-
-            // File reader onload event handler
-            fileReader.onload = function(event) {
-              // Decode the ArrayBuffer into audio data using decodeAudioData
-              audioContext.decodeAudioData(event.target.result, function(decodedData) {
-                // Resolve the promise with the decoded audio data
-                resolve(decodedData);
-              }, function(err) {
-                // Reject the promise if there's an error
-                reject(err);
-              });
-            };
-
-            // Read the Blob as ArrayBuffer
-            fileReader.readAsArrayBuffer(blob);
-          });
-
-          // Await the decoding process
-          const storedDecodedData = await decodedPromise;
-          storedDecodedDataArray.push(storedDecodedData);
-
-          // console.log("storedDecodedData: ", storedDecodedData);
+          const decodedData = await blob.arrayBuffer().then(buffer => audioContext.decodeAudioData(buffer));
+          storedDecodedDataArray.push(decodedData);
         } catch (err) {
-          console.error('Error generating speech marks:', err);
+          console.error('Error generating audio stream:', err);
         }
       }
 
       return storedDecodedDataArray;
     }
-
-
-
   </script>
 
   <script type="module">
-
+    // Importing necessary modules
     import { sayHello } from 'hello-module';
-    import { TalkingHead } from "talkinghead";
+    import { TalkingHead } from 'talkinghead';
 
-    // Call the function from the imported module
+    // Calling a function from imported module
     sayHello('John');
 
+    // Mapping Polly visemes to Oculus visemes
     const convDict = {
       "p": "PP", "t": "DD", "S": "CH", "T": "TH",
       "f": "FF", "k": "kk", "i": "I", "r": "RR",
       "s": "SS", "u": "U", "@": "aa", "a": "aa",
       "e": "E", "E": "E", "o": "O", "O": "O",
       "sil": "sil"
-    }
+    };
 
+    // Viseme durations
     const visemeDurations = {
       'aa': 0.95, 'E': 0.90, 'I': 0.92, 'O': 0.96, 'U': 0.95, 'PP': 1.08,
       'SS': 1.23, 'TH': 1, 'DD': 1.05, 'FF': 1.00, 'kk': 1.21, 'nn': 0.88,
-      'RR': 0.88, 'DD': 1.05, 'sil': 1
+      'RR': 0.88, 'sil': 1
     };
 
+    // Map Polly visemes to Oculus visemes
     function pollyToOculusMap(visms) {
-
-      visms.forEach(item => {
-        item.forEach(sitem => {
-          // console.log("item.value before: ", sitem.value)
-          sitem.value = convDict[sitem.value]
-          // console.log("item.value after: " + sitem.value)
-        })
-      })
-
-      return visms
+      visms.forEach(item => item.forEach(sitem => sitem.value = convDict[sitem.value]));
+      return visms;
     }
 
+    // Split viseme substrings and calculate durations
     function splitVisemeSubstrings(so) {
-      //console.log(so)
-      so = so.trim()
-      const lines = so.split('\n');
-      var result = [];
+      const lines = so.trim().split('\n');
+      const result = [];
       let subarray = [];
 
-      // console.log(lines.length)
-
-      for (const line of lines) {
-        // console.log(line)
+      lines.forEach(line => {
         const obj = JSON.parse(line);
         if (obj.type === "viseme") {
-          const visemeValue = obj.value;
-          const duration = visemeDurations[convDict[visemeValue]] || 1;
-          obj.duration = duration;
+          obj.duration = visemeDurations[convDict[obj.value]] || 1;
           subarray.push(obj);
-        } else {
-          if (subarray.length > 0) {
-            result.push(subarray);
-            subarray = [];
-          }
+        } else if (subarray.length > 0) {
+          result.push(subarray);
+          subarray = [];
         }
-      }
+      });
 
-      // Push the last subarray if it's not empty
-      if (subarray.length > 0) {
-        result.push(subarray);
-      }
-
-      const oculus_result = pollyToOculusMap(result);
-
-      return oculus_result;
+      if (subarray.length > 0) result.push(subarray);
+      return pollyToOculusMap(result);
     }
 
+    // Extract sentences from speech marks
     function extractSentences(input) {
       // Split input based on newline
       input = input.trim()
@@ -271,71 +207,43 @@
       return sentences;
     }
 
+    // Extract word timings for synchronization
     function extractWordTimings(input) {
-      // Split input based on newline
-      input = input.trim()
-      const lines = input.split('\n');
+      const lines = input.trim().split('\n');
       const result = [];
       let sentenceResult = [];
       let timeSentence = 0;
       let mark = 0;
 
-      // Iterate through each line
       lines.forEach(line => {
-        // Parse JSON data from each line
         const data = JSON.parse(line);
-
-        // Check if type is 'sentence'
         if (data.type === 'sentence') {
-          // If it's not the first sentence, push the previous sentence result
-          if (sentenceResult.length > 0) {
-            // console.log("sentenceResult in sentence")
-            // console.log(sentenceResult)
-            result.push(sentenceResult);
-            sentenceResult = []; // Reset sentenceResult for the new sentence
-          }
-          // Store the time for the sentence and reset mark
+          if (sentenceResult.length > 0) result.push(sentenceResult);
+          sentenceResult = [];
           timeSentence = data.time;
           mark = 0;
         } else if (data.type === 'word') {
-          // Calculate the time relative to the sentence
           const relativeTime = data.time - timeSentence;
-          // Store word value, relative time, and mark
-          // console.log("sentenceResult in else before")
-          // console.log(sentenceResult.length)
-          // console.log(mark.toString() + "  " + (relativeTime / 1000).toString())
-          sentenceResult.push({ markName: mark.toString(), timeSeconds: 1 * relativeTime / 1000 });
-          // console.log("sentenceResult in else after")
-          // console.log(sentenceResult.length)
+          sentenceResult.push({ markName: mark.toString(), timeSeconds: relativeTime / 1000 });
           mark++;
         }
       });
 
-      // Push the last sentence result
-      if (sentenceResult.length > 0) {
-        result.push(sentenceResult);
-      }
-
+      if (sentenceResult.length > 0) result.push(sentenceResult);
       return result;
     }
 
-    //import { TalkingHead } from "talkinghead";
-
     let head;
 
-    document.addEventListener('DOMContentLoaded', async function (e) {
-
-      // Instantiate the class
-      // NOTE: Never put your API key in a client-side code unless you know
-      //       that you are the only one to have access to that code!
+    // DOMContentLoaded event handler
+    document.addEventListener('DOMContentLoaded', async () => {
       const nodeAvatar = document.getElementById('avatar');
       head = new TalkingHead(nodeAvatar, {
         ttsEndpoint: "https://texttospeech.googleapis.com/v1beta1/text:synthesize",
-        ttsApikey: "AIzaSyCDVDcShxAexCcMHX1ZEYu2-jDhMBMRdLo", // <- Change this
+        ttsApikey: "AIzaSyCDVDcShxAexCcMHX1ZEYu2-jDhMBMRdLo",
         cameraView: "upper"
       });
 
-      // Load and show the avatar
       const nodeLoading = document.getElementById('loading');
       try {
         nodeLoading.textContent = "Loading...";
@@ -346,119 +254,77 @@
           ttsLang: "en-GB",
           ttsVoice: "en-GB-Standard-A",
           lipsyncLang: 'en'
-        }, (ev) => {
+        }, ev => {
           if (ev.lengthComputable) {
-            let val = Math.min(100, Math.round(ev.loaded / ev.total * 100));
+            const val = Math.min(100, Math.round(ev.loaded / ev.total * 100));
             nodeLoading.textContent = "Loading " + val + "%";
           }
         });
         nodeLoading.style.display = 'none';
       } catch (error) {
-        console.log(error);
+        console.error(error);
         nodeLoading.textContent = error.toString();
       }
 
-      const nodeChangeButton = document.getElementById('changeButton');
-      const nodeDropdown = document.getElementById('dropdown');
-
-      nodeChangeButton.addEventListener('click', function () {
+      // Change avatar model based on dropdown selection
+      document.getElementById('changeButton').addEventListener('click', async () => {
         try {
-          const selectedOption = nodeDropdown.value;
-          console.log("Selected option:", selectedOption);
-          // Add your logic here to handle the selected option
-          if (selectedOption === "https://models.readyplayer.me/64bfa15f0e72c63d7c3934a6.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png") {
-            voiceId = "Kendra"
-          }
-          else if (selectedOption === "https://models.readyplayer.me/662500cb36fc699c3e7a30ce.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png") {
-            voiceId = "Matthew"
-          }
-          else if (selectedOption === "https://models.readyplayer.me/6625059471c592bae0a45fdc.glb?morphTargets=ARKit,Oculus+Visemes,mouthOpen,mouthSmile,eyesClosed,eyesLookUp,eyesLookDown&textureSizeLimit=1024&textureFormat=png") {
-            voiceId = "Aditi"
-          }
+          const selectedOption = document.getElementById('dropdown').value;
+          voiceId = selectedOption.includes("64bfa15f0e72c63d7c3934a6") ? "Kendra" :
+            selectedOption.includes("662500cb36fc699c3e7a30ce") ? "Matthew" : "Aditi";
           nodeLoading.textContent = "Loading...";
-
-          head.showAvatar({
+          await head.showAvatar({
             url: selectedOption,
             body: 'F',
             avatarMood: 'neutral',
             ttsLang: "en-GB",
             ttsVoice: "en-GB-Standard-A",
             lipsyncLang: 'en'
-          }, (ev) => {
+          }, ev => {
             if (ev.lengthComputable) {
-              let val = Math.min(100, Math.round(ev.loaded / ev.total * 100));
+              const val = Math.min(100, Math.round(ev.loaded / ev.total * 100));
               nodeLoading.textContent = "Loading " + val + "%";
             }
           });
           nodeLoading.style.display = 'none';
         } catch (error) {
-          console.log(error);
+          console.error(error);
           nodeLoading.textContent = error.toString();
         }
       });
 
-      // Speak when clicked
-      const nodeSpeak = document.getElementById('speak');
-      nodeSpeak.addEventListener('click', async function () {
+      // Speak text input when button is clicked
+      document.getElementById('speak').addEventListener('click', async () => {
         try {
           const text = document.getElementById('text').value;
           if (text) {
-            console.log(text)
-            head.setCountersToZero()
-            const aws_data = await generateSpeechMarks(text)
-            console.log("aws_data")
-            console.log(aws_data.toString('utf-8'))
+            head.setCountersToZero();
+            const awsData = await generateSpeechMarks(text);
+            const awsDataStr = awsData.toString('utf-8');
 
-            const vismArray = splitVisemeSubstrings(aws_data.toString('utf-8'))
-            console.log("vismArray")
-            console.log(vismArray)
+            const vismArray = splitVisemeSubstrings(awsDataStr);
+            const vismTimePoints = extractWordTimings(awsDataStr);
+            const awsAudioTextArray = extractSentences(awsDataStr);
+            const awsAudioDataArray = await generateAudioStream(awsAudioTextArray);
 
-            const vismTimePoints = extractWordTimings(aws_data.toString('utf-8'))
-            console.log("vismTimePoints")
-            console.log(vismTimePoints) // <<-------!!!! Be careful. For whatever reason, the log shows the first entry missing from every array!!! 
-            // But it is not! check using vismTimePoints[0][0].markName
-
-            const aws_audio_text_array = extractSentences(aws_data.toString('utf-8'))
-            console.log("aws_audio_text_array")
-            console.log(aws_audio_text_array)
-            // console.log(vismArray)
-            // const aws_buffer = await streamToBuffer(aws_data)
-            // console.log(aws_data)
-            const aws_audio_data_array = await generateAudioStream(aws_audio_text_array)
-
-            const aws_audio_data = { "audio": aws_audio_data_array, "timepoints": vismTimePoints }
-
-            console.log("aws_audio_data_array")
-            console.log(aws_audio_data_array)
-            // console.log("aws_audio_data: ")
-            // console.log(aws_audio_data)
-            // aws_audio_array.push(aws_audio_data)
-            head.setAudioStream(aws_audio_data)
-
-            head.speakText(aws_audio_text_array, vismArray);
+            head.setAudioStream({ audio: awsAudioDataArray, timepoints: vismTimePoints });
+            head.speakText(awsAudioTextArray, vismArray);
           }
         } catch (error) {
-          console.log(error);
+          console.error(error);
         }
       });
-
-
-
     });
-    /**/
   </script>
 </head>
-<!-- FIX "I'm fine." ERROR LATER-->
 
 <body>
   <div id="avatar"></div>
   <div id="controls">
-    <!-- Text Field -->
     <div id="textFieldContainer">
       <input id="text" type="text" value="Hi there. How are you? I'm fine.">
       <button id="speak" type="button">Speak</button>
     </div>
-    <!-- Dropdown List -->
     <div id="dropdownContainer">
       <select id="dropdown">
         <option
