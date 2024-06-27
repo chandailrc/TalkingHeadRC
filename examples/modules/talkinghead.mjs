@@ -1998,17 +1998,20 @@ class TalkingHead {
       let sentence = sentenceArray[i];
       let words = sentence.split(dividersWord);
 
-      console.log("sentence")
-      console.log(sentence)
+      // console.log("sentence")
+      // console.log(sentence)
 
       for (let j = 0; j < words.length; j++) {
         let word = words[j];
+        if (emojis.test(word)) {
+          continue;
+        }
         const isLastWord = j === (words.length - 1);
         // const isSpeakable = word.match(speakables);
         const isEndOfWord = word.match(dividersWord) || isLastWord;
 
-        console.log("word: ")
-        console.log(word)
+        // console.log("word: ")
+        // console.log(word)
 
         // Add word to subtitles
         if (onsubtitles) {
@@ -2046,8 +2049,8 @@ class TalkingHead {
           markdownWord = '';
         }
 
-        console.log("textWord")
-        console.log(textWord)
+        // console.log("textWord")
+        // console.log(textWord)
 
         // Push visemes to animation queue
         if (textWord.length) {
@@ -2055,13 +2058,13 @@ class TalkingHead {
           vismCounter++;
 
           const v = this.convertto_lipsyncWordsToVisemes(textWord, pollyViseme);
-          const veee = this.lipsyncWordsToVisemes(textWord, lipsyncLang);
+          // const veee = this.lipsyncWordsToVisemes(textWord, lipsyncLang);
 
           console.log(`v textWord : ${textWord}`)
           console.log("v>>")
           console.log(v)
-          console.log("veee>>")
-          console.log(veee)
+          // console.log("veee>>")
+          // console.log(veee)
 
           if (v && v.visemes && v.visemes.length) {
             const d = v.times[v.visemes.length - 1] + v.durations[v.visemes.length - 1];
@@ -2076,6 +2079,10 @@ class TalkingHead {
               });
             }
           }
+
+          console.log("lipsyncAnim")
+          console.log(lipsyncAnim)
+
           textWord = '';
           markId++;
         }
@@ -2100,6 +2107,17 @@ class TalkingHead {
           }
           this.speechQueue.push(o);
 
+          console.log("o>>>>>")
+          console.log(o)
+
+          console.log("this.speechQueue")
+          console.dir(this.speechQueue)
+          console.log("speechqueue length: ")
+          console.log(this.speechQueue.length)
+          for (const i of this.speechQueue) {
+            console.log(i)
+          }
+
           // Reset sentence and animation sequence
           ttsSentence = [];
           textWord = '';
@@ -2108,6 +2126,7 @@ class TalkingHead {
         }
 
         // Send emoji, if the divider was a known emoji
+        // let sentence = "😘"
         if (sentence.match(emojis)) {
           let emoji = this.animEmojis[sentence.match(emojis)[0]];
           if (emoji && emoji.link) emoji = this.animEmojis[emoji.link];
@@ -2510,25 +2529,30 @@ class TalkingHead {
 
             this.speakWithHands();
 
-            data1.timepoints.shift()
-            // console.log("data.timepoints")
-            // console.log(data.timepoints)
+            // console.log("data1.timepoints _ Before")
+            // console.log(data1.timepoints)
 
+            data1.timepoints.shift()
+
+            // console.log("data1.timepoints _ After")
+            // console.log(data1.timepoints)
 
             // Word-to-audio alignment
             const timepoints = [{ mark: 0, time: 0 }];
             data1.timepoints.forEach((x, i) => {
-              // console.log(`x in datatimepoints:`)
+              // console.log(`x, ${i} in datatimepoints:`)
               // console.log(x)
               const time = x.timeSeconds * 1000;
               let prevDuration = time - timepoints[i].time;
               if (prevDuration > 150) prevDuration - 150; // Trim out leading space
               timepoints[i].duration = prevDuration;
               timepoints.push({ mark: parseInt(x.markName), time: time });
+              // console.log("timepoints")
+              // console.log(timepoints)
             });
             let d = 1000 * audio.duration; // Duration in ms
             if (d > this.opt.ttsTrimEnd) d = d - this.opt.ttsTrimEnd; // Trim out silence at the end
-            timepoints[timepoints.length - 1].duration = d - timepoints[timepoints.length - 1].time;
+            timepoints[timepoints.length - 1].duration = d - timepoints[timepoints.length - 1].time;// + 450;
 
             // Re-set animation starting times and rescale durations
             line.anim.forEach(x => {

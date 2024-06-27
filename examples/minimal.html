@@ -110,8 +110,14 @@
     async function generateAudioStream(textArray) {
       const outputFormat = 'mp3';
       const storedDecodedDataArray = [];
+      const emojisRegex = /[\p{Extended_Pictographic}]/u;
 
       for (const text of textArray) {
+        if (emojisRegex.test(text)) {
+          storedDecodedDataArray.push("");
+          continue;
+        }
+
         const params = {
           Text: text,
           OutputFormat: outputFormat,
@@ -158,6 +164,25 @@
       'RR': 0.88, 'sil': 1
     };
 
+    function cleanString(input) {
+      // Define the regex to match emojis (using Unicode property for Extended Pictographic)
+      const emojisRegex = /[\p{Extended_Pictographic}]/ug;
+
+      // Remove all emojis from the input string
+      let cleanedString = input.replace(emojisRegex, '');
+
+      // Remove extra spaces (multiple spaces to a single space)
+      cleanedString = cleanedString.replace(/\s+/g, ' ');
+
+      // Remove spaces before punctuation marks
+      cleanedString = cleanedString.replace(/\s+([.,!?])/g, '$1');
+
+      // Trim leading and trailing spaces
+      cleanedString = cleanedString.trim();
+
+      return cleanedString;
+    }
+
     // Map Polly visemes to Oculus visemes
     function pollyToOculusMap(visms) {
       visms.forEach(item => item.forEach(sitem => sitem.value = convDict[sitem.value]));
@@ -187,6 +212,7 @@
 
     // Extract sentences from speech marks
     function extractSentences(input) {
+
       // Split input based on newline
       input = input.trim()
       const lines = input.split('\n');
@@ -205,6 +231,57 @@
       });
 
       return sentences;
+    }
+
+    function splitSentencesAndEmojis(input) {
+      // Define the regex to match emojis (using Unicode property for Extended Pictographic)
+      const emojisRegex = /([\p{Extended_Pictographic}])/ug;
+
+      // Split the input string based on emojis, preserving the emojis in the result
+      let parts = input.split(emojisRegex).filter(part => part !== '');
+
+      // Define the regex to match punctuation marks (including Hindi and English)
+      const punctuationRegex = /[.?!।]/g;
+
+      let result = [];
+
+      // Iterate through the parts and further split by punctuation
+      parts.forEach(part => {
+        if (emojisRegex.test(part)) {
+          // If the part is an emoji, add it directly to the result
+          result.push(part);
+        } else {
+          // Split by punctuation marks, preserving the punctuation in the result
+          let sentences = part.split(punctuationRegex).filter(sentence => sentence.trim() !== '');
+          let punctuations = part.match(punctuationRegex) || [];
+
+          // Combine sentences and punctuation marks in the result
+          sentences.forEach((sentence, index) => {
+            result.push(sentence.trim());
+            if (punctuations[index]) {
+              result[result.length - 1] += punctuations[index];
+            }
+          });
+        }
+      });
+
+      return result;
+    }
+
+    function removeAndJoinWithExclamation(arr) {
+      // Helper function to check if a string contains only emojis
+      function containsEmoji(str) {
+        const emojiRegex = /^(?:[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{1F900}-\u{1F9FF}]|[\u{1FA70}-\u{1FAFF}])+$/gu;
+        return emojiRegex.test(str);
+      }
+
+      // Filter out array entries with emojis
+      const filteredArr = arr.filter(entry => !containsEmoji(entry));
+
+      // Join the remaining strings with "!"
+      const joinedString = filteredArr.join("!");
+
+      return joinedString;
     }
 
     // Extract word timings for synchronization
@@ -240,7 +317,7 @@
       const nodeAvatar = document.getElementById('avatar');
       head = new TalkingHead(nodeAvatar, {
         ttsEndpoint: "https://texttospeech.googleapis.com/v1beta1/text:synthesize",
-        ttsApikey: "AIzaSyCDVDcShxAexCcMHX1ZEYu2-jDhMBMRdLo",
+        ttsApikey: "",//"AIzaSyCDVDcShxAexCcMHX1ZEYu2-jDhMBMRdLo",
         cameraView: "upper"
       });
 
@@ -299,16 +376,41 @@
           const text = document.getElementById('text').value;
           if (text) {
             head.setCountersToZero();
-            const awsData = await generateSpeechMarks(text);
+
+            const cleanText = cleanString(text)
+            console.log(`cleanText: ${cleanText}`)
+
+            const emoSentences = splitSentencesAndEmojis(text)
+            console.log('emoSentences')
+            console.log(emoSentences)
+
+            const newText = removeAndJoinWithExclamation(emoSentences)
+            console.log('newText')
+            console.log(newText)
+
+            const awsData = await generateSpeechMarks(newText);
             const awsDataStr = awsData.toString('utf-8');
+            console.log("awsDataStr")
+            console.log(awsDataStr)
 
             const vismArray = splitVisemeSubstrings(awsDataStr);
+            console.log("vismArray")
+            console.log(vismArray)
+
             const vismTimePoints = extractWordTimings(awsDataStr);
+            console.log("vismTimePoints")
+            console.log(vismTimePoints)
+
             const awsAudioTextArray = extractSentences(awsDataStr);
+            console.log("awsAudioTextArray")
+            console.log(awsAudioTextArray)
+
             const awsAudioDataArray = await generateAudioStream(awsAudioTextArray);
+            console.log("awsAudioDataArray")
+            console.log(awsAudioDataArray)
 
             head.setAudioStream({ audio: awsAudioDataArray, timepoints: vismTimePoints });
-            head.speakText(awsAudioTextArray, vismArray);
+            head.speakText(emoSentences, vismArray);
           }
         } catch (error) {
           console.error(error);
